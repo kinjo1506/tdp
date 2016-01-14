@@ -15,55 +15,48 @@ class NoaTimetable < Timetable
   private
 
   def fetch_noa(url)
+    day = [:Monday, :Tuesday, :Wednesday, :Thursday, :Friday, :Saturday, :Sunday]
+
+    instructors = {}
+    classes = []
+
     Anemone.crawl(url, @@opts) do |anemone|
       anemone.on_every_page do |page|
 
-        instructors = {}
 
         page.doc.xpath("/html/body//table[contains(@class,'schedule_table')]").each do |schedule|
-          # スタジオ名
-          puts schedule.xpath(".//th/text()").to_s
-
-          # timetable[曜日][クラス]
-          timetable = Array.new(7) { Array.new() }
+          studio_name = 'NOA ' << schedule.xpath(".//th/text()").to_s
 
           schedule.xpath(".//tr").each_with_index do |row, row_index|
             next if (row_index < 2)
 
-            time = row.xpath("./td[@class='back']/text()").to_s
+            time = trim(row.xpath("./td[@class='back']/text()").to_s)
 
-            row.xpath("./td").each_with_index do |data, data_index|
-              next if (data_index < 1)
+            row.xpath("./td").each_with_index do |data, column_index|
+              next if (column_index < 1)
 
+              class_name = trim(data.xpath("./text()").to_s)
               instructor_name = trim(data.xpath("./a/text()").to_s)
               instructor_team = trim(data.xpath("./a/small/text()").to_s)
 
               instructors[instructor_name] = instructor_team;
 
-              timetable[data_index - 1].push({
-                  time: time,
-                  classname: data.xpath("./text()").to_s,
-                  instructor: data.xpath("./a/text()").to_s,
-                  team: data.xpath("./a/small/text()").to_s
-                })
+              classes.push(
+                {
+                  studio: studio_name,
+                  day:    day[column_index - 1],
+                  time:   time,
+                  genre:  '(undefined)',
+                  name:   class_name,
+                  instructor: instructor_name
+                }
+              )
             end
           end
-
-          # day = ["mon","tue","wed","thu","fri","sat","sun"]
-          # timetable.each_with_index do |classes, day_index|
-          #   puts day[day_index]
-          #   classes.each do |clazz|
-          #     puts "    ---"
-          #     puts "    " + clazz[:time]
-          #     puts "    " + clazz[:classname]
-          #     puts "    " + clazz[:instructor] + " ( " + clazz[:team] + " )"
-          #   end
-          #   puts "    ---"
-          # end
-
         end
 
         update_instructors instructors
+        update_classes classes
 
       end
     end

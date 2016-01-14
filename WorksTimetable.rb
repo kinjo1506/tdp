@@ -29,8 +29,8 @@ class WorksTimetable < Timetable
           studio.xpath("./table/tr[2]/td").each_with_index do |timetable, day_index|
             timetable.xpath("./div[@class='instructor']").each do |node|
 
-              time = node.xpath("./dl/dt/text()").to_s
-              class_name = node.xpath("./div[@class='csname']/text()").to_s
+              time = trim(node.xpath("./dl/dt/text()").to_s)
+              class_name = trim(node.xpath("./div[@class='csname']/text()").to_s)
               instructor_name = trim(node.xpath("./dl/dd/span/text()").to_s)
 
               instructors[instructor_name] = nil
@@ -41,7 +41,7 @@ class WorksTimetable < Timetable
                   day:    day[day_index],
                   time:   time,
                   genre:  '(undefined)',
-                  class:  class_name,
+                  name:   class_name,
                   instructor: instructor_name
                 }
               )
@@ -51,6 +51,7 @@ class WorksTimetable < Timetable
       end
     end
 
+    update_instructors instructors
     update_classes classes
 
   end
