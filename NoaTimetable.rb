@@ -5,25 +5,52 @@ require './Timetable'
 
 class NoaTimetable < Timetable
   def fetch
-    fetch_noa "http://www.noadance.com/schedule_ikebukuro/"   # 池袋
-    fetch_noa "http://www.noadance.com/schedule_toritsudai/"  # 都立大
-    fetch_noa "http://www.noadance.com/schedule_shinjuku/"    # 新宿
-    fetch_noa "http://www.noadance.com/schedule_shinjuku2/"   # 新宿 ANNEX
-    fetch_noa "http://www.noadance.com/schedule_akihabara/"   # 秋葉原
+    fetch_classes(fetch_instructors())
   end
 
   private
 
-  def fetch_noa(url)
-    day = [:Monday, :Tuesday, :Wednesday, :Thursday, :Friday, :Saturday, :Sunday]
+  @@base_url = "http://www.noadance.com"
+
+  def full_url(url)
+    unless url.start_with? @@base_url
+      url = @@base_url + url
+    end
+    url
+  end
+
+  def fetch_instructors
+    opts = {
+      depth_limit: 0
+    }
 
     instructors = {}
+
+    Anemone.crawl(@@base_url + "/dancer/", opts) do |anemone|
+      anemone.on_every_page do |page|
+        page.doc.xpath("/html/body//div[@class='dancer_box']").each do |data|
+          instructors[full_url(data.at_xpath(".//li/a").attribute("href").value)] = {
+            name: trim(data.at_xpath(".//li[@class='dancername']/text()").to_s),
+            team: trim(data.at_xpath(".//li[@class='dancerteam']/text()").to_s)
+          }
+        end
+      end
+    end
+
+    instructors
+  end
+
+  def fetch_classes(instructors)
+    day = [:Monday, :Tuesday, :Wednesday, :Thursday, :Friday, :Saturday, :Sunday]
+
+    opts = {
+      depth_limit: 1
+    }
+
     classes = []
 
-    Anemone.crawl(url, @@opts) do |anemone|
-      anemone.on_every_page do |page|
-
-
+    Anemone.crawl(@@base_url + "/schedule/", opts) do |anemone|
+      anemone.on_pages_like(/schedule_\w+/) do |page|
         page.doc.xpath("/html/body//table[contains(@class,'schedule_table')]").each do |schedule|
           studio_name = 'NOA ' << schedule.xpath(".//th/text()").to_s
 
@@ -34,12 +61,15 @@ class NoaTimetable < Timetable
 
             row.xpath("./td").each_with_index do |data, column_index|
               next if (column_index < 1)
+              next unless data.at_xpath("./a")
+
+              key = full_url(data.at_xpath("./a").attribute("href").value)
 
               class_name = trim(data.xpath("./text()").to_s)
-              instructor_name = trim(data.xpath("./a/text()").to_s)
-              instructor_team = trim(data.xpath("./a/small/text()").to_s)
+              instructor_name = instructors[key][:name] rescue trim(data.xpath("./a/text()").to_s)
+              instructor_team = instructors[key][:team] rescue trim(data.xpath("./a/small/text()").to_s)
 
-              instructors[instructor_name] = instructor_team;
+              # instructors[instructor_name] = instructor_team;
 
               classes.push(
                 {
@@ -54,12 +84,12 @@ class NoaTimetable < Timetable
             end
           end
         end
-
-        update_instructors instructors
-        update_classes classes
-
       end
     end
-  end
 
+    p classes
+    # update_instructors instructors
+    # update_classes classes
+
+  end
 end
