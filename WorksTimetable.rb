@@ -6,12 +6,49 @@ require './Timetable'
 class WorksTimetable < Timetable
 
   def fetch
-    fetch_works
+    instructors = fetch_instructors()
+    classes = fetch_classes(instructors)
   end
 
   private
 
-  def fetch_works
+  @@base_url = "http://danceworks.jp"
+
+  def full_url(url)
+    unless url.start_with? @@base_url
+      url = @@base_url + url
+    end
+    url
+  end
+
+  def fetch_instructors
+    opts = {
+      depth_limit: 0
+    }
+
+    instructors = []
+
+    Anemone.crawl(@@base_url + "/instructor/", opts) do |anemone|
+      anemone.on_every_page do |page|
+        page.doc.xpath("/html/body//div[@class='instructor_list']").each do |data|
+
+          profile_url = full_url(data.at_xpath("./dl//a").attribute("href").value)
+          name = trim(data.at_xpath("./dl//a/text()").to_s)
+
+          instructors.push(
+            {
+              profile_url: profile_url,
+              name: name
+            }
+          )
+        end
+      end
+    end
+
+    instructors
+  end
+
+  def fetch_classes(instructors)
     studio_name = [
       "Works 渋谷松濤校",
       "Works 渋谷宇田川校A",
@@ -20,7 +57,6 @@ class WorksTimetable < Timetable
     ]
     day = [:Monday, :Tuesday, :Wednesday, :Thursday, :Friday, :Saturday, :Sunday]
 
-    instructors = {}
     classes = []
 
     Anemone.crawl("http://danceworks.jp/lesson/", @@opts) do |anemone|

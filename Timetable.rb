@@ -16,29 +16,15 @@ class Timetable
   end
 
   def update_instructors(instructors)
-    update_query = 'update instructor set team = case name'
-    update_names = ''
-    insert_query = 'insert or ignore into instructor(name, team) values'
+    insert_query = 'insert or ignore into instructor(profile_url, name, team) values'
 
-    instructors.each do |name, team|
-      next if (name.nil? || name.empty?)
-
-      unless team.nil? || team.empty?
-        update_query << sprintf(' when "%s" then "%s"', name, team)
-        update_names << sprintf('"%s",', name)
-      end
-
-      insert_query << sprintf(' ("%s", "%s"),', name, team)
+    instructors.each do |value|
+      insert_query << sprintf(' ("%s", "%s", "%s"),', value[:profile_url], value[:name], value[:team])
     end
 
-    update_query << ' else "" end where (team is null or team = "") and (name in (' << update_names.chop << '));'
     insert_query.chop! << ';'
 
     SQLite3::Database.new 'tdp.sqlite3' do |db|
-      unless update_names.empty?
-        db.execute update_query
-      end
-
       db.execute insert_query
       db.close
     end

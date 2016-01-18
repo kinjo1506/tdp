@@ -5,7 +5,8 @@ require './Timetable'
 
 class NoaTimetable < Timetable
   def fetch
-    fetch_classes(fetch_instructors())
+    instructors = fetch_instructors()
+    classes = fetch_classes(instructors)
   end
 
   private
@@ -24,15 +25,23 @@ class NoaTimetable < Timetable
       depth_limit: 0
     }
 
-    instructors = {}
+    instructors = []
 
     Anemone.crawl(@@base_url + "/dancer/", opts) do |anemone|
       anemone.on_every_page do |page|
         page.doc.xpath("/html/body//div[@class='dancer_box']").each do |data|
-          instructors[full_url(data.at_xpath(".//li/a").attribute("href").value)] = {
-            name: trim(data.at_xpath(".//li[@class='dancername']/text()").to_s),
-            team: trim(data.at_xpath(".//li[@class='dancerteam']/text()").to_s)
-          }
+
+          profile_url = full_url(data.at_xpath(".//li/a").attribute("href").value)
+          name = trim(data.at_xpath(".//li[@class='dancername']/text()").to_s)
+          team = trim(data.at_xpath(".//li[@class='dancerteam']/text()").to_s)
+
+          instructors.push(
+            {
+              profile_url: profile_url,
+              name: name,
+              team: team
+            }
+          )
         end
       end
     end
