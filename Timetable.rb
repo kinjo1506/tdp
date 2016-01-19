@@ -16,16 +16,40 @@ class Timetable
   end
 
   def update_instructors(instructors)
-    insert_query = 'insert or ignore into instructor(profile_url, name, team) values'
+    query = '
+      drop table if exists instructor_temp;
 
+      create temporary table instructor_temp (
+        profile_url text not null unique,
+        name text not null,
+        team text default null
+      );
+
+      insert into instructor_temp values
+    '
     instructors.each do |value|
-      insert_query << sprintf(' ("%s", "%s", "%s"),', value[:profile_url], value[:name], value[:team])
+      query << sprintf(' ("%s", "%s", "%s"),', value[:profile_url], value[:name], value[:team])
     end
+    query.chop! << ';' << '
+      update instructor
+      set
+        name = (select name from instructor_temp where (instructor.profile_url = instructor_temp.profile_url)),
+        team = (select team from instructor_temp where (instructor.profile_url = instructor_temp.profile_url))
+      where
+        profile_url in (select profile_url from instructor_temp);
 
-    insert_query.chop! << ';'
+      insert or ignore into instructor (
+        profile_url, name, team
+      )
+      select
+        profile_url, name, team
+      from instructor_temp;
+
+      drop table if exists instructor_temp;
+      '
 
     SQLite3::Database.new 'tdp.sqlite3' do |db|
-      db.execute insert_query
+      db.execute_batch query
       db.close
     end
   end

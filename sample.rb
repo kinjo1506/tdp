@@ -10,3 +10,4 @@ require './WorksCancelSchedule'
 
 # NoaBalletTimetable.new.fetch
 WorksTimetable.new.fetch
+NoaTimetable.new.fetch
