@@ -5,11 +5,6 @@ require './Timetable'
 
 class WorksTimetable < Timetable
 
-  def fetch
-    instructors = fetch_instructors()
-    classes = fetch_classes(instructors)
-  end
-
   private
 
   @@base_url = "http://danceworks.jp"
@@ -67,9 +62,8 @@ class WorksTimetable < Timetable
 
               time = trim(node.xpath("./dl/dt/text()").to_s)
               class_name = trim(node.xpath("./div[@class='csname']/text()").to_s)
-              instructor_name = trim(node.xpath("./dl/dd/span/text()").to_s)
-
-              instructors[instructor_name] = nil
+              instructor_url = full_url(node.at_xpath("./dl//a").attribute("href").value)
+              instructor_name = (instructors.find { |e| e[:profile_url] == instructor_url })[:name] rescue trim(node.xpath("./dl/dd/span/text()").to_s)
 
               classes.push(
                 {
@@ -78,7 +72,8 @@ class WorksTimetable < Timetable
                   time:   time,
                   genre:  '(undefined)',
                   name:   class_name,
-                  instructor: instructor_name
+                  instructor_url: instructor_url,
+                  instructor_name: instructor_name
                 }
               )
             end
@@ -87,8 +82,6 @@ class WorksTimetable < Timetable
       end
     end
 
-    update_instructors instructors
-    update_classes classes
-
+    classes
   end
 end

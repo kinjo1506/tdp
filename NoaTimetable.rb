@@ -4,10 +4,6 @@ require 'anemone'
 require './Timetable'
 
 class NoaTimetable < Timetable
-  def fetch
-    instructors = fetch_instructors()
-    classes = fetch_classes(instructors)
-  end
 
   private
 
@@ -64,21 +60,15 @@ class NoaTimetable < Timetable
           studio_name = 'NOA ' << schedule.xpath(".//th/text()").to_s
 
           schedule.xpath(".//tr").each_with_index do |row, row_index|
-            next if (row_index < 2)
-
             time = trim(row.xpath("./td[@class='back']/text()").to_s)
 
             row.xpath("./td").each_with_index do |data, column_index|
-              next if (column_index < 1)
               next unless data.at_xpath("./a")
 
-              key = full_url(data.at_xpath("./a").attribute("href").value)
-
               class_name = trim(data.xpath("./text()").to_s)
-              instructor_name = instructors[key][:name] rescue trim(data.xpath("./a/text()").to_s)
-              instructor_team = instructors[key][:team] rescue trim(data.xpath("./a/small/text()").to_s)
-
-              # instructors[instructor_name] = instructor_team;
+              instructor_url = full_url(data.at_xpath("./a").attribute("href").value)
+              instructor_name = (instructors.find { |e| e[:profile_url] == instructor_url })[:name] rescue trim(data.xpath("./a/text()").to_s)
+              instructor_team = (instructors.find { |e| e[:profile_url] == instructor_url })[:team] rescue trim(data.xpath("./a/small/text()").to_s)
 
               classes.push(
                 {
@@ -87,7 +77,9 @@ class NoaTimetable < Timetable
                   time:   time,
                   genre:  '(undefined)',
                   name:   class_name,
-                  instructor: instructor_name
+                  instructor_url: instructor_url,
+                  instructor_name: instructor_name,
+                  instructor_team: instructor_team
                 }
               )
             end
@@ -96,9 +88,6 @@ class NoaTimetable < Timetable
       end
     end
 
-    p classes
-    # update_instructors instructors
-    # update_classes classes
-
+    classes
   end
 end

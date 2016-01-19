@@ -2,9 +2,22 @@ require 'sqlite3'
 
 class Timetable
   def fetch
+    instructors = fetch_instructors()
+    classes = fetch_classes(instructors)
+
+    update_instructors instructors
+    update_classes classes
   end
 
   private
+
+  def fetch_instructors
+    raise 'Method \'fetch_instructors\' not implemented.'
+  end
+
+  def fetch_classes(instructors)
+    raise 'Method \'fetch_classes\' not implemented.'
+  end
 
   @@opts = { depth_limit: 0 }
   @@day_id = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday:4, Friday: 5, Saturday: 6 }
@@ -64,15 +77,14 @@ class Timetable
           time text not null,
           genre text not null,
           name text not null,
-          instructor text not null,
-          note text
+          instructor_url text not null
       );
 
       insert into class_temp values
     '
     classes.each do |clazz|
-      query << sprintf(' ("%s", "%d", "%s", "%s", "%s", "%s", "%s"),',
-          clazz[:studio], @@day_id[clazz[:day]], clazz[:time], clazz[:genre], clazz[:name], clazz[:instructor], '')
+      query << sprintf(' ("%s", "%d", "%s", "%s", "%s", "%s"),',
+          clazz[:studio], @@day_id[clazz[:day]], clazz[:time], clazz[:genre], clazz[:name], clazz[:instructor_url])
     end
     query.chop! << ';' << '
       update class
@@ -86,7 +98,7 @@ class Timetable
           from class_temp t
           inner join studio s on (t.studio = s.name)
           inner join genre g on (t.genre = g.name)
-          inner join instructor i on (t.instructor = i.name)
+          inner join instructor i on (t.instructor_url = i.profile_url)
         ) sub
         on (
           (class.studio = sub.studio) and
@@ -99,14 +111,14 @@ class Timetable
       );
 
       insert or ignore into class (
-        studio, day, time, genre, name, instructor, note
+        studio, day, time, genre, name, instructor
       )
       select
-        s.id, t.day, t.time, g.id, t.name, i.id, t.note
+        s.id, t.day, t.time, g.id, t.name, i.id
       from class_temp t
       inner join studio s on (t.studio = s.name)
       inner join genre g on (t.genre = g.name)
-      inner join instructor i on (t.instructor = i.name);
+      inner join instructor i on (t.instructor_url = i.profile_url);
 
       drop table if exists class_temp;
       '
