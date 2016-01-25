@@ -5,6 +5,63 @@ require './Timetable'
 
 class WorksTimetable < Timetable
 
+  def fetch_substitute
+    days = {
+      '月' => :Monday,
+      '火' => :Tuesday,
+      '水' => :Wednesday,
+      '木' => :Thursday,
+      '金' => :Friday,
+      '土' => :Saturday,
+      '日' => :Sunday,
+    }
+    opts = {
+      depth_limit: 0,
+    }
+
+    substitutes = []
+
+    Anemone.crawl(@@base_url + "/lesson/cancelsubstitute/", opts) do |anemone|
+      anemone.on_every_page do |page|
+        dates = page.doc.xpath("/html/body//h4")
+
+        page.doc.xpath("/html/body//table[@class='cstable2']").each_with_index do |table, date_index|
+          if /\d{4}\/(\d{2}\/\d{2})（(.{1})）/ =~ dates[date_index].text
+            date = $1
+            day  = days[$2]
+          end
+
+          table.xpath("./tr").each do |sub|
+            next unless sub.at_xpath("./td[@class='studio_name']")
+
+            if /\/([^\/]+)$/ =~ sub.at_xpath("./td[@class='instructor_name']").text
+              instructor_name = $1
+            end
+
+            if /(\d{2}:\d{2})-(\d{2}:\d{2})/ =~ sub.at_xpath("./td[@class='lesson_time']").text
+              start_time = $1
+              end_time   = $2
+            end
+
+            substitutes.push(
+              {
+                studio: 'Works ' + sub.at_xpath("./td[@class='studio_name']/text()").to_s,
+                date:   date,
+                day:    day,
+                start_time: start_time,
+                end_time:   end_time,
+                instructor: trim(instructor_name),
+                substitute: trim(sub.at_xpath("./td[@class='cs_cont']").text),
+              }
+            )
+          end
+        end
+      end
+    end
+
+    puts substitutes
+  end
+
   private
 
   @@base_url = "http://danceworks.jp"
