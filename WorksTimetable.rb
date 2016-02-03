@@ -117,7 +117,11 @@ class WorksTimetable < Timetable
           studio.xpath("./table/tr[2]/td").each_with_index do |timetable, day_index|
             timetable.xpath("./div[@class='instructor']").each do |node|
 
-              time = trim(node.xpath("./dl/dt/text()").to_s)
+              if /(\d{2}:\d{2})-(\d{2}:\d{2})/ =~ node.at_xpath("./dl/dt").text
+                start_time = $1
+                end_time   = $2
+              end
+
               class_name = trim(node.xpath("./div[@class='csname']/text()").to_s)
               instructor_url = full_url(node.at_xpath("./dl//a").attribute("href").value)
               instructor_name = (instructors.find { |e| e[:profile_url] == instructor_url })[:name] rescue trim(node.xpath("./dl/dd/span/text()").to_s)
@@ -126,7 +130,8 @@ class WorksTimetable < Timetable
                 {
                   studio: studio_name[studio_index],
                   day:    day[day_index],
-                  time:   time,
+                  start_time: start_time,
+                  end_time: end_time,
                   genre:  '(undefined)',
                   name:   class_name,
                   instructor_url: instructor_url,

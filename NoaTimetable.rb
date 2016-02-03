@@ -37,7 +37,7 @@ class NoaTimetable < Timetable
           end
 
           data[2].text.split("\n").each do |sub|
-            if /(.+)\((.+)\)(\d{1,2}:\d{1,2})(~|～|〜)\p{blank}?(.+)/ =~ sub
+            if /(.+)\((.+)\)(\d{1,2}:\d{1,2})[~～〜]\p{blank}?(.+)/ =~ sub
               substitutes.push(
                 {
                   studio: studio_name + ' ' + $2,
@@ -45,7 +45,7 @@ class NoaTimetable < Timetable
                   day:    days[data[1].text],
                   start_time:   $3,
                   instructor: trim($1),
-                  substitute: trim($5),
+                  substitute: trim($4),
                 }
               )
             end
@@ -112,12 +112,24 @@ class NoaTimetable < Timetable
           studio_name = 'NOA ' << schedule.xpath(".//th/text()").to_s
 
           schedule.xpath(".//tr").each_with_index do |row, row_index|
-            time = trim(row.xpath("./td[@class='back']/text()").to_s)
+            if /(\d{2}:\d{2})[-~〜～](\d{2}:\d{2})/ =~ row.xpath("./td[@class='back']/text()").to_s
+              row_start_time = $1
+              row_end_time   = $2
+            end
 
             row.xpath("./td").each_with_index do |data, column_index|
               next unless data.at_xpath("./a")
 
-              class_name = trim(data.xpath("./text()").to_s)
+              if /(\d{2}:\d{2})[-~〜～](\d{2}:\d{2}).*※(.+)/ =~ data.xpath("./text()").to_a.join(' ')
+                start_time = $1
+                end_time   = $2
+                class_name = trim($3)
+              else
+                start_time = row_start_time
+                end_time   = row_end_time
+                class_name = trim(data.xpath("./text()").to_a.join(' '))
+              end
+
               instructor_url = full_url(data.at_xpath("./a").attribute("href").value)
               instructor_name = (instructors.find { |e| e[:profile_url] == instructor_url })[:name] rescue trim(data.xpath("./a/text()").to_s)
               instructor_team = (instructors.find { |e| e[:profile_url] == instructor_url })[:team] rescue trim(data.xpath("./a/small/text()").to_s)
@@ -126,7 +138,8 @@ class NoaTimetable < Timetable
                 {
                   studio: studio_name,
                   day:    day[column_index - 1],
-                  time:   time,
+                  start_time: start_time,
+                  end_time: end_time,
                   genre:  '(undefined)',
                   name:   class_name,
                   instructor_url: instructor_url,

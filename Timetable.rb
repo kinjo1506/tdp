@@ -25,7 +25,7 @@ class Timetable
   def trim(str)
     japanese_chars = '[\p{Han}\p{Hiragana}\p{Katakana}，．、。ー・]+'
     regexp = Regexp.new('\s*(' + japanese_chars + ')\s*')
-    str.strip.gsub(regexp, '\1').to_s
+    str.gsub(/[\s[:blank:]]+/, ' ').gsub(regexp, '\1').to_s.strip
   end
 
   def update_instructors(instructors)
@@ -74,7 +74,8 @@ class Timetable
       create temporary table class_temp (
           studio text not null,
           day integer not null,
-          time text not null,
+          start_time text not null,
+          end_time text not null,
           genre text not null,
           name text not null,
           instructor_url text not null
@@ -83,8 +84,8 @@ class Timetable
       insert into class_temp values
     '
     classes.each do |clazz|
-      query << sprintf(' ("%s", "%d", "%s", "%s", "%s", "%s"),',
-          clazz[:studio], @@day_id[clazz[:day]], clazz[:time], clazz[:genre], clazz[:name], clazz[:instructor_url])
+      query << sprintf(' ("%s", "%d", "%s", "%s", "%s", "%s", "%s"),',
+          clazz[:studio], @@day_id[clazz[:day]], clazz[:start_time], clazz[:end_time], clazz[:genre], clazz[:name], clazz[:instructor_url])
     end
     query.chop! << ';' << '
       update class
@@ -94,7 +95,7 @@ class Timetable
         from class
         inner join (
           select
-            s.id as studio, t.day, t.time, g.id as genre, t.name, i.id as instructor
+            s.id as studio, t.day, t.start_time, t.end_time, g.id as genre, t.name, i.id as instructor
           from class_temp t
           inner join studio s on (t.studio = s.name)
           inner join genre g on (t.genre = g.name)
@@ -103,7 +104,8 @@ class Timetable
         on (
           (class.studio = sub.studio) and
           (class.day = sub.day) and
-          (class.time = sub.time) and
+          (class.start_time = sub.start_time) and
+          (class.end_time = sub.end_time) and
           (class.genre = sub.genre) and
           (class.name = sub.name) and
           (class.instructor = sub.instructor)
@@ -111,10 +113,10 @@ class Timetable
       );
 
       insert or ignore into class (
-        studio, day, time, genre, name, instructor
+        studio, day, start_time, end_time, genre, name, instructor
       )
       select
-        s.id, t.day, t.time, g.id, t.name, i.id
+        s.id, t.day, t.start_time, t.end_time, g.id, t.name, i.id
       from class_temp t
       inner join studio s on (t.studio = s.name)
       inner join genre g on (t.genre = g.name)
