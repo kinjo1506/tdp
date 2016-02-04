@@ -25,7 +25,7 @@ class Timetable
   def trim(str)
     japanese_chars = '[\p{Han}\p{Hiragana}\p{Katakana}，．、。ー・]+'
     regexp = Regexp.new('\s*(' + japanese_chars + ')\s*')
-    str.gsub(/[\s[:blank:]]+/, ' ').gsub(regexp, '\1').to_s.strip
+    str.gsub(/[[:space:]]+/, ' ').gsub(regexp, '\1').to_s.strip
   end
 
   def update_instructors(instructors)

@@ -23,7 +23,7 @@ class NoaTimetable < Timetable
 
     Anemone.crawl(@@base_url + "/close/", opts) do |anemone|
       anemone.on_pages_like(/close_\w+/) do |page|
-        studio_name = 'NOA ' << page.doc.xpath("/html/head/title/text()").to_s.match(/(.+校)/)[1]
+        studio_name = 'NOA ' << page.doc.xpath("/html/head/title").text.match(/(.+校)/)[1]
         month = Date.today.strftime('%m')
 
         page.doc.xpath("/html/body//table[@class='close_table']/tr").each do |row|
@@ -80,8 +80,8 @@ class NoaTimetable < Timetable
         page.doc.xpath("/html/body//div[@class='dancer_box']").each do |data|
 
           profile_url = full_url(data.at_xpath(".//li/a").attribute("href").value)
-          name = trim(data.at_xpath(".//li[@class='dancername']/text()").to_s)
-          team = trim(data.at_xpath(".//li[@class='dancerteam']/text()").to_s)
+          name = trim(data.at_xpath(".//li[@class='dancername']").text)
+          team = trim(data.at_xpath(".//li[@class='dancerteam']").text)
 
           instructors.push(
             {
@@ -109,10 +109,10 @@ class NoaTimetable < Timetable
     Anemone.crawl(@@base_url + "/schedule/", opts) do |anemone|
       anemone.on_pages_like(/schedule_\w+/) do |page|
         page.doc.xpath("/html/body//table[contains(@class,'schedule_table')]").each do |schedule|
-          studio_name = 'NOA ' << schedule.xpath(".//th/text()").to_s
+          studio_name = 'NOA ' << schedule.xpath(".//th").text
 
           schedule.xpath(".//tr").each_with_index do |row, row_index|
-            if /(\d{2}:\d{2})[-~〜～](\d{2}:\d{2})/ =~ row.xpath("./td[@class='back']/text()").to_s
+            if /(\d{2}:\d{2})[-~〜～](\d{2}:\d{2})/ =~ row.xpath("./td[@class='back']").text
               row_start_time = $1
               row_end_time   = $2
             end
@@ -120,7 +120,7 @@ class NoaTimetable < Timetable
             row.xpath("./td").each_with_index do |data, column_index|
               next unless data.at_xpath("./a")
 
-              if /(\d{2}:\d{2})[-~〜～](\d{2}:\d{2}).*※(.+)/ =~ data.xpath("./text()").to_a.join(' ')
+              if /(\d{2}:\d{2})[-~〜～](\d{2}:\d{2}).*※(.+)/ =~ trim(data.xpath("./text()").to_a.join(' '))
                 start_time = $1
                 end_time   = $2
                 class_name = trim($3)
@@ -131,8 +131,8 @@ class NoaTimetable < Timetable
               end
 
               instructor_url = full_url(data.at_xpath("./a").attribute("href").value)
-              instructor_name = (instructors.find { |e| e[:profile_url] == instructor_url })[:name] rescue trim(data.xpath("./a/text()").to_s)
-              instructor_team = (instructors.find { |e| e[:profile_url] == instructor_url })[:team] rescue trim(data.xpath("./a/small/text()").to_s)
+              instructor_name = (instructors.find { |e| e[:profile_url] == instructor_url })[:name] rescue trim(data.xpath("./a/text()").to_a.join(' '))
+              instructor_team = (instructors.find { |e| e[:profile_url] == instructor_url })[:team] rescue trim(data.xpath("./a/small/text()").to_a.join(' '))
 
               classes.push(
                 {

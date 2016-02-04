@@ -45,7 +45,7 @@ class WorksTimetable < Timetable
 
             substitutes.push(
               {
-                studio: 'Works ' + sub.at_xpath("./td[@class='studio_name']/text()").to_s,
+                studio: 'Works ' + sub.at_xpath("./td[@class='studio_name']").text,
                 date:   date,
                 day:    day,
                 start_time: start_time,
@@ -84,8 +84,8 @@ class WorksTimetable < Timetable
       anemone.on_every_page do |page|
         page.doc.xpath("/html/body//div[@class='instructor_list']").each do |data|
 
-          profile_url = full_url(data.at_xpath("./dl//a").attribute("href").value)
-          name = trim(data.at_xpath("./dl//a/text()").to_s)
+          profile_url = full_url(data.at_xpath("./dl/dt/a").attribute("href").value)
+          name = trim(data.at_xpath("./dl/dt/a").text)
 
           instructors.push(
             {
@@ -122,9 +122,9 @@ class WorksTimetable < Timetable
                 end_time   = $2
               end
 
-              class_name = trim(node.xpath("./div[@class='csname']/text()").to_s)
+              class_name = trim(node.xpath("./div[@class='csname']").text)
               instructor_url = full_url(node.at_xpath("./dl//a").attribute("href").value)
-              instructor_name = (instructors.find { |e| e[:profile_url] == instructor_url })[:name] rescue trim(node.xpath("./dl/dd/span/text()").to_s)
+              instructor_name = (instructors.find { |e| e[:profile_url] == instructor_url })[:name] rescue trim(node.xpath("./dl/dd/span").text)
 
               classes.push(
                 {
