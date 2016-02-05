@@ -6,7 +6,6 @@ require './Timetable'
 require './NoaTimetable'
 require './NoaBalletTimetable'
 require './WorksTimetable'
-require './WorksCancelSchedule'
 
 # NoaBalletTimetable.new.fetch
 WorksTimetable.new.fetch

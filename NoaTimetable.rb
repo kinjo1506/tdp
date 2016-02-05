@@ -5,58 +5,6 @@ require './Timetable'
 
 class NoaTimetable < Timetable
 
-  def fetch_substitute
-    days = {
-      '月' => :Monday,
-      '火' => :Tuesday,
-      '水' => :Wednesday,
-      '木' => :Thursday,
-      '金' => :Friday,
-      '土' => :Saturday,
-      '日' => :Sunday,
-    }
-    opts = {
-      depth_limit: 1,
-    }
-
-    substitutes = []
-
-    Anemone.crawl(@@base_url + "/close/", opts) do |anemone|
-      anemone.on_pages_like(/close_\w+/) do |page|
-        studio_name = 'NOA ' << page.doc.xpath("/html/head/title").text.match(/(.+校)/)[1]
-        month = Date.today.strftime('%m')
-
-        page.doc.xpath("/html/body//table[@class='close_table']/tr").each do |row|
-          data = row.xpath("./td")
-
-          if /(\d+)\/(\d+)/ =~ data[0].text
-            month = ('0' + $1)[-2, 2]
-            date  = ('0' + $2)[-2, 2]
-          else
-            date = ('0' + data[0].text)[-2, 2]
-          end
-
-          data[2].text.split("\n").each do |sub|
-            if /(.+)\((.+)\)(\d{1,2}:\d{1,2})[~～〜]\p{blank}?(.+)/ =~ sub
-              substitutes.push(
-                {
-                  studio: studio_name + ' ' + $2,
-                  date: sprintf('%s/%s', month, date),
-                  day: days[data[1].text],
-                  start_time: $3,
-                  instructor: trim($1),
-                  substitute: trim($4),
-                }
-              )
-            end
-          end
-        end
-      end
-    end
-
-    puts substitutes
-  end
-
   private
 
   @@base_url = "http://www.noadance.com"
@@ -162,5 +110,57 @@ class NoaTimetable < Timetable
     end
 
     classes
+  end
+
+  def fetch_substitutes
+    days = {
+      '月' => :Monday,
+      '火' => :Tuesday,
+      '水' => :Wednesday,
+      '木' => :Thursday,
+      '金' => :Friday,
+      '土' => :Saturday,
+      '日' => :Sunday,
+    }
+    opts = {
+      depth_limit: 1,
+    }
+
+    substitutes = []
+
+    Anemone.crawl(@@base_url + "/close/", opts) do |anemone|
+      anemone.on_pages_like(/close_\w+/) do |page|
+        studio_name = 'NOA ' << page.doc.xpath("/html/head/title").text.match(/(.+校)/)[1]
+        month = Date.today.strftime('%m')
+
+        page.doc.xpath("/html/body//table[@class='close_table']/tr").each do |row|
+          data = row.xpath("./td")
+
+          if /(\d+)\/(\d+)/ =~ data[0].text
+            month = ('0' + $1)[-2, 2]
+            date  = ('0' + $2)[-2, 2]
+          else
+            date = ('0' + data[0].text)[-2, 2]
+          end
+
+          data[2].text.split("\n").each do |sub|
+            if /(.+)\((.+)\)(\d{1,2}:\d{1,2})[~～〜]\p{blank}?(.+)/ =~ sub
+              substitutes.push(
+                {
+                  studio: studio_name + ' ' + $2,
+                  date: sprintf('%s/%s', month, date),
+                  day: days[data[1].text],
+                  start_time: $3,
+                  instructor: trim($1),
+                  substitute: trim($4),
+                }
+              )
+            end
+          end
+        end
+      end
+    end
+
+    substitutes
   end
 end

@@ -4,6 +4,7 @@ class Timetable
   def fetch
     update_instructors fetch_instructors()
     update_classes     fetch_classes()
+    update_substitutes fetch_substitutes()
   end
 
   private
@@ -16,8 +17,22 @@ class Timetable
     raise 'Method \'fetch_classes\' not implemented.'
   end
 
+  def fetch_substitutes
+    raise 'Method \'fetch_substitutes\' not implemented.'
+  end
+
   @@opts = { depth_limit: 0 }
   @@day_id = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday:4, Friday: 5, Saturday: 6 }
+
+  def initialize
+    @studios = {}
+    SQLite3::Database.new 'tdp.sqlite3' do |db|
+      db.execute 'select id, name from studio' do |col|
+        @studios.store(col[1], col[0])
+      end
+      db.close
+    end
+  end
 
   def trim(str)
     japanese_chars = '[\p{Han}\p{Hiragana}\p{Katakana}，．、。ー・]+'
@@ -31,14 +46,14 @@ class Timetable
 
       create temporary table instructor_temp (
         profile_url text not null unique,
-        name text not null,
-        team text default null
+        name        text not null,
+        team        text default null
       );
 
       insert into instructor_temp values
     '
     instructors.each do |value|
-      query << sprintf(' ("%s", "%s", "%s"),', value[:profile_url], value[:name], value[:team])
+      query << sprintf(' ("%s", "%s", "%s"),', value[:profile_url], value[:name], value[:team]) rescue ''
     end
     query.chop! << ';' << '
       update instructor
@@ -69,20 +84,20 @@ class Timetable
       drop table if exists class_temp;
 
       create temporary table class_temp (
-          studio text not null,
-          day integer not null,
-          start_time text not null,
-          end_time text not null,
-          genre text not null,
-          name text not null,
-          instructor_url text not null
+          studio          integer not null,
+          day             integer not null,
+          start_time      text    not null,
+          end_time        text    not null,
+          genre           text    not null,
+          name            text    not null,
+          instructor_url  text    not null
       );
 
       insert into class_temp values
     '
     classes.each do |clazz|
-      query << sprintf(' ("%s", "%d", "%s", "%s", "%s", "%s", "%s"),',
-          clazz[:studio], @@day_id[clazz[:day]], clazz[:start_time], clazz[:end_time], clazz[:genre], clazz[:name], clazz[:instructor_url])
+      query << sprintf(' ("%d", "%d", "%s", "%s", "%s", "%s", "%s"),',
+          @studios[clazz[:studio]], @@day_id[clazz[:day]], clazz[:start_time], clazz[:end_time], clazz[:genre], clazz[:name], clazz[:instructor_url]) rescue ''
     end
     query.chop! << ';' << '
       update class
@@ -92,9 +107,8 @@ class Timetable
         from class
         inner join (
           select
-            s.id as studio, t.day, t.start_time, t.end_time, g.id as genre, t.name, i.id as instructor
+            t.studio, t.day, t.start_time, t.end_time, g.id as genre, t.name, i.id as instructor
           from class_temp t
-          inner join studio s on (t.studio = s.name)
           inner join genre g on (t.genre = g.name)
           inner join instructor i on (t.instructor_url = i.profile_url)
         ) sub
@@ -113,13 +127,66 @@ class Timetable
         studio, day, start_time, end_time, genre, name, instructor
       )
       select
-        s.id, t.day, t.start_time, t.end_time, g.id, t.name, i.id
+        t.studio, t.day, t.start_time, t.end_time, g.id, t.name, i.id
       from class_temp t
-      inner join studio s on (t.studio = s.name)
       inner join genre g on (t.genre = g.name)
       inner join instructor i on (t.instructor_url = i.profile_url);
 
       drop table if exists class_temp;
+      '
+
+    SQLite3::Database.new 'tdp.sqlite3' do |db|
+      db.execute_batch query
+      db.close
+    end
+  end
+
+  def update_substitutes(substitutes)
+    query = '
+      drop table if exists substitute_temp;
+
+      create temporary table substitute_temp (
+          class       integer,
+          studio      integer,
+          date        text    not null,
+          day         integer not null,
+          start_time  text    not null,
+          substitute  text    not null
+      );
+
+      insert into substitute_temp (studio, date, day, start_time, substitute) values
+    '
+    substitutes.each do |sub|
+      query << sprintf(' ("%d", "%s", "%d", "%s", "%s"),',
+          @studios[sub[:studio]], sub[:date], @@day_id[sub[:day]], sub[:start_time], sub[:substitute]) rescue ''
+    end
+    query.chop! << ';' << '
+      update substitute_temp
+      set class = (
+        select id from class where
+          (class.studio     = substitute_temp.studio)     and
+          (class.day        = substitute_temp.day)        and
+          (class.start_time = substitute_temp.start_time)
+      );
+
+      update substitute
+      set substitute = (
+        select substitute from substitute_temp where
+          (substitute.date  = substitute_temp.date) and
+          (substitute.class = substitute_temp.class)
+      )
+      where
+        (date  in (select date  from substitute_temp)) and
+        (class in (select class from substitute_temp));
+
+      insert or ignore into substitute (
+        studio, date, class, substitute
+      )
+      select
+        studio, date, class, substitute
+      from substitute_temp;
+
+      drop table if exists substitute_temp;
       '
 
     SQLite3::Database.new 'tdp.sqlite3' do |db|
