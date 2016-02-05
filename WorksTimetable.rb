@@ -90,7 +90,7 @@ class WorksTimetable < Timetable
           instructors.push(
             {
               profile_url: profile_url,
-              name: name
+              name: name,
             }
           )
         end
@@ -100,14 +100,22 @@ class WorksTimetable < Timetable
     instructors
   end
 
-  def fetch_classes(instructors)
+  def fetch_classes
     studio_name = [
       "Works 渋谷松濤校",
       "Works 渋谷宇田川校A",
       "Works 渋谷宇田川校B",
-      "Works 渋谷シアター校"
+      "Works 渋谷シアター校",
     ]
-    day = [:Monday, :Tuesday, :Wednesday, :Thursday, :Friday, :Saturday, :Sunday]
+    days = [
+      :Monday,
+      :Tuesday,
+      :Wednesday,
+      :Thursday,
+      :Friday,
+      :Saturday,
+      :Sunday,
+    ]
 
     classes = []
 
@@ -124,18 +132,18 @@ class WorksTimetable < Timetable
 
               class_name = trim(node.xpath("./div[@class='csname']").text)
               instructor_url = full_url(node.at_xpath("./dl//a").attribute("href").value)
-              instructor_name = (instructors.find { |e| e[:profile_url] == instructor_url })[:name] rescue trim(node.xpath("./dl/dd/span").text)
+              instructor_name = trim(node.xpath("./dl/dd/span").text)
 
               classes.push(
                 {
                   studio: studio_name[studio_index],
-                  day:    day[day_index],
+                  day: days[day_index],
                   start_time: start_time,
                   end_time: end_time,
-                  genre:  '(undefined)',
-                  name:   class_name,
+                  genre: '(undefined)',
+                  name: class_name,
                   instructor_url: instructor_url,
-                  instructor_name: instructor_name
+                  instructor_name: instructor_name,
                 }
               )
             end

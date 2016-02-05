@@ -41,9 +41,9 @@ class NoaTimetable < Timetable
               substitutes.push(
                 {
                   studio: studio_name + ' ' + $2,
-                  date:   sprintf('%s/%s', month, date),
-                  day:    days[data[1].text],
-                  start_time:   $3,
+                  date: sprintf('%s/%s', month, date),
+                  day: days[data[1].text],
+                  start_time: $3,
                   instructor: trim($1),
                   substitute: trim($4),
                 }
@@ -97,8 +97,16 @@ class NoaTimetable < Timetable
     instructors
   end
 
-  def fetch_classes(instructors)
-    day = [:Monday, :Tuesday, :Wednesday, :Thursday, :Friday, :Saturday, :Sunday]
+  def fetch_classes
+    days = [
+      :Monday,
+      :Tuesday,
+      :Wednesday,
+      :Thursday,
+      :Friday,
+      :Saturday,
+      :Sunday,
+    ]
 
     opts = {
       depth_limit: 1
@@ -131,20 +139,20 @@ class NoaTimetable < Timetable
               end
 
               instructor_url = full_url(data.at_xpath("./a").attribute("href").value)
-              instructor_name = (instructors.find { |e| e[:profile_url] == instructor_url })[:name] rescue trim(data.xpath("./a/text()").to_a.join(' '))
-              instructor_team = (instructors.find { |e| e[:profile_url] == instructor_url })[:team] rescue trim(data.xpath("./a/small/text()").to_a.join(' '))
+              instructor_name = trim(data.xpath("./a/text()").to_a.join(' '))
+              instructor_team = trim(data.xpath("./a/small/text()").to_a.join(' '))
 
               classes.push(
                 {
                   studio: studio_name,
-                  day:    day[column_index - 1],
+                  day: days[column_index - 1],
                   start_time: start_time,
                   end_time: end_time,
-                  genre:  '(undefined)',
-                  name:   class_name,
+                  genre: '(undefined)',
+                  name: class_name,
                   instructor_url: instructor_url,
                   instructor_name: instructor_name,
-                  instructor_team: instructor_team
+                  instructor_team: instructor_team,
                 }
               )
             end

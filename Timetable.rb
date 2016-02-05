@@ -2,11 +2,8 @@ require 'sqlite3'
 
 class Timetable
   def fetch
-    instructors = fetch_instructors()
-    classes = fetch_classes(instructors)
-
-    update_instructors instructors
-    update_classes classes
+    update_instructors fetch_instructors()
+    update_classes     fetch_classes()
   end
 
   private
@@ -15,7 +12,7 @@ class Timetable
     raise 'Method \'fetch_instructors\' not implemented.'
   end
 
-  def fetch_classes(instructors)
+  def fetch_classes
     raise 'Method \'fetch_classes\' not implemented.'
   end
 
