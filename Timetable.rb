@@ -69,43 +69,45 @@ class Timetable
       drop table if exists class_temp;
 
       create temporary table class_temp (
-          studio text not null,
-          day integer not null,
-          start_time text not null,
-          end_time text not null,
-          genre text not null,
-          name text not null,
-          instructor_url text not null
+          studio_id      integer,
+          studio_name    text    not null,
+          day            integer not null,
+          start_time     text    not null,
+          end_time       text    not null,
+          genre_id       integer,
+          genre_name     text    not null,
+          name           text    not null,
+          instructor_id  integer,
+          instructor_url text    not null
       );
 
-      insert into class_temp values
+      insert into class_temp(studio_name, day, start_time, end_time, genre_name, name, instructor_url) values
     '
     classes.each do |clazz|
       query << sprintf(' ("%s", "%d", "%s", "%s", "%s", "%s", "%s"),',
           clazz[:studio], @@day_id[clazz[:day]], clazz[:start_time], clazz[:end_time], clazz[:genre], clazz[:name], clazz[:instructor_url])
     end
     query.chop! << ';' << '
+      update class_temp
+      set
+        studio_id     = (select id from studio     where class_temp.studio_name    = studio.name),
+        genre_id      = (select id from genre      where class_temp.genre_name     = genre.name),
+        instructor_id = (select id from instructor where class_temp.instructor_url = instructor.profile_url);
+
       update class
       set exists_at = datetime(\'now\', \'localtime\')
       where id in (
         select id
         from class
-        inner join (
-          select
-            s.id as studio, t.day, t.start_time, t.end_time, g.id as genre, t.name, i.id as instructor
-          from class_temp t
-          inner join studio s on (t.studio = s.name)
-          inner join genre g on (t.genre = g.name)
-          inner join instructor i on (t.instructor_url = i.profile_url)
-        ) sub
+        inner join class_temp
         on (
-          (class.studio = sub.studio) and
-          (class.day = sub.day) and
-          (class.start_time = sub.start_time) and
-          (class.end_time = sub.end_time) and
-          (class.genre = sub.genre) and
-          (class.name = sub.name) and
-          (class.instructor = sub.instructor)
+          (class.studio     = class_temp.studio_id)  and
+          (class.day        = class_temp.day)        and
+          (class.start_time = class_temp.start_time) and
+          (class.end_time   = class_temp.end_time)   and
+          (class.genre      = class_temp.genre_id)   and
+          (class.name       = class_temp.name)       and
+          (class.instructor = class_temp.instructor_id)
         )
       );
 
@@ -113,11 +115,8 @@ class Timetable
         studio, day, start_time, end_time, genre, name, instructor
       )
       select
-        s.id, t.day, t.start_time, t.end_time, g.id, t.name, i.id
-      from class_temp t
-      inner join studio s on (t.studio = s.name)
-      inner join genre g on (t.genre = g.name)
-      inner join instructor i on (t.instructor_url = i.profile_url);
+        studio_id, day, start_time, end_time, genre_id, name, instructor_id
+      from class_temp;
 
       drop table if exists class_temp;
       '
